@@ -1,4 +1,7 @@
+<<<<<<< HEAD
 
+=======
+>>>>>>> 505364456674b3ccc63d2de485aec22ef19ec380
 OSCILLOSCOPIO SU ATM2650
 
 L'oscilloscio consiste nel campionamento di 8 canali su ADC. L'ADC è connesso a un multiplexer analogico che permette 8/16 ingressi di tensione single-ended costruiti dai PIN della porta F e quelli della porta K.
