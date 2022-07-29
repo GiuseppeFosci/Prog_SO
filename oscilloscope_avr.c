@@ -8,15 +8,12 @@
 #define BAUD 9600
 #define MYUBRR (F_CPU/16/BAUD-1)
 #define MAX_BUF 256
+#define MAX_CHAR 5
 
-char str_to_get[MAX_BUF];
-volatile uint8_t interrupt_flag = 0;
-volatile uint8_t measurement;
-
-char str_array_to_stream [256][5];
-uint8_t str_idx_usart = 0;
-uint8_t char_idx_usart = 0;
-uint8_t str_idx_adc = 0;
+char array[MAX_BUF][MAX_CHAR];
+uint8_t idx=0;
+uint8_t idx_read=0;
+uint8_t char_idx=0;
 
 void UART_init(void){
 	UBRR0H = (uint8_t)(MYUBRR>>8);
@@ -26,55 +23,63 @@ void UART_init(void){
 }
 
 //Michele
-ISR(USART0_UDRE_vect){
-	if(str_array_to_stream[str_idx_usart][char_idx_usart]){
-		UDR0=str_array_to_stream[str_idx_usart][char_idx_usart];
-		char_idx_usart++;
-	}else{
-		if(str_idx_usart>255) {
-				str_idx_usart=0;
-				char_idx_usart=0;
-			}else {
-				str_idx_usart+=1;
-				char_idx_usart=0;
-				}
-		}
-	UCSR0B &= ~(1 << UDRIE0);
-}
-
 ISR(USART0_RX_vect){
 	uint8_t c=UDR0;
 	if(c == 'y'){	//y to start the ADC
-		ADCSRA = 0xBF;
-		ADCSRA |= 0x40;
+			ADCSRA = 0x9F;
+			ADCSRA |= 0x40;
 	}
 	if(c == 'n'){	//n to stop the ADC
+		UCSR0B &= ~(1 << UDRIE0);
 		ADCSRA = 0x00;
-		ADCSRA = 0xBF;
+		ADCSRA = 0x9F;
+	}
+}
+ISR(USART0_UDRE_vect){
+	if(array[idx_read][char_idx]){
+		UDR0=array[idx_read][char_idx];
+		char_idx+=1;
+		ADCSRA |= 0x40;
+		UCSR0B &= ~(1 << UDRIE0);
+	} else {
+		idx_read+=1;
+		char_idx=0;
+	}
+	if(char_idx >= MAX_CHAR -1){
+		idx_read+=1;
+		if(idx_read >= MAX_BUF){
+			idx_read=0;
+			char_idx=0;
+		}
 	}
 }
 //Michele
 
 //Gabriele and Michele
 ISR(ADC_vect){
-	measurement=(uint8_t)ADC;
-	if(str_idx_adc>255){
-		str_idx_adc=0;
+	sprintf(array[idx],"%d\n",(int)ADCH);
+	idx+=1;
+	if(idx >= MAX_BUF){
+		idx=0;
 	}
-	sprintf(str_array_to_stream[str_idx_adc], "%d\n",(int)measurement);
-	str_idx_adc+=1;
 	UCSR0B |= (1 << UDRIE0);
 }
 //Gabriele and Michele
 
-//Gabriele and Michele
 int main(void){
+	//Gabriele and Michele
 	cli();
 	UART_init();
+	const uint8_t mask=0xFF; 
+	DDRF  &= ~mask;
+	PORTF &= ~mask;
+	const uint8_t mask_PRADC =0x01; 
+	PRR0 &= ~mask_PRADC;
 	ADCSRB = 0x00;
-	ADMUX = 0x40;
+	ADMUX = 0x60;
 	sei();
 	while(1){}
+	//Gabriele and Michele
 }
 //Gabriele and Michele
 
