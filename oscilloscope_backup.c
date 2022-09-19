@@ -10,12 +10,11 @@
 #define MAX_BUF 256
 #define MAX_CHAR 5
 
-//char array[MAX_BUF][MAX_CHAR];
-//uint8_t idx=0;
-//uint8_t idx_read=0;
+char array[MAX_BUF][MAX_CHAR];
+char str[MAX_BUF];
 uint8_t char_idx=0;
-char str[256];
-uint8_t start=0;
+uint8_t adc_count=0;
+uint8_t currentADCValues[8];
 
 void UART_init(void){
 	UBRR0H = (uint8_t)(MYUBRR>>8);
@@ -27,62 +26,41 @@ void UART_init(void){
 //Michele
 ISR(USART0_RX_vect){
 	uint8_t c=UDR0;
-	if(c == '1'){	//y to start the ADC
-		ADCSRA = 0x98;
-		ADCSRA |= 0x40;
-	}
-	if(c == '2'){	//y to start the ADC
+	if(c == 'y'){	//y to start the ADC
 			ADCSRA = 0x9F;
 			ADCSRA |= 0x40;
 	}
-	if(c == '0'){	//n to stop the ADC
-		start='0';
+	if(c == 'n'){	//n to stop the ADC
+		UCSR0B &= ~(1 << UDRIE0);
 		ADCSRA = 0x00;
 		ADCSRA = 0x9F;
-		UCSR0B &= ~(1 << UDRIE0);
 	}
 }
 ISR(USART0_UDRE_vect){
-	/*if(array[idx_read][char_idx]){
-		UDR0=array[idx_read][char_idx];
-		char_idx+=1;
-	} else {
-		idx_read+=1;
-		char_idx=0;
-		ADCSRA |= 0x40;
-	}
-	if(char_idx >= MAX_CHAR){
-		idx_read+=1;
-		if(idx_read >= MAX_BUF){
-			idx_read=0;
-			char_idx=0;
-		}
-		UCSR0B &= ~(1 << UDRIE0);
-		ADCSRA |= 0x40;
-	}*/
 	if(str[char_idx]){
 		UDR0=str[char_idx];
 		char_idx+=1;
 	} else {
 		char_idx=0;
-		if(start!='0'){
-			UCSR0B &= ~(1 << UDRIE0);
-			ADCSRA |= 0x40;
-		}
+		UCSR0B &= ~(1 << UDRIE0);
+		ADCSRA |= 0x40;
 	}
 }
 //Michele
 
 //Giuseppe and Michele
 ISR(ADC_vect){
-	/*sprintf(array[idx],"%d\n",(int)ADCH);
-	idx+=1;
-	if(idx >= MAX_BUF){
-		idx=0;
+	uint8_t oldMux = ADMUX;
+	ADMUX = (oldMux & 0xE0) | (((oldMux & 0x1F) + 1) & 0x07);
+	currentADCValues[((oldMux & 0x1F) + 7) & 0x07] = (uint8_t)ADCH;
+	adc_count+=1;
+	if(adc_count==8){
+		adc_count=0;
+		sprintf(str,"%05u    %05u    %05u    %05u    %05u    %05u    %05u    %05u\n",currentADCValues[0],currentADCValues[1],currentADCValues[2],currentADCValues[3],currentADCValues[4],currentADCValues[5],currentADCValues[6],currentADCValues[7]);
+		UCSR0B |= (1 << UDRIE0);
+	} else {
+		ADCSRA |= 0x40;
 	}
-	UCSR0B |= (1 << UDRIE0);*/
-	sprintf(str,"%d\n",(int)ADCH);
-	UCSR0B |= (1 << UDRIE0);
 }
 //Giuseppe and Michele
 
@@ -90,7 +68,7 @@ int main(void){
 	//Giuseppe and Michele
 	cli();
 	UART_init();
-	const uint8_t mask=0xFF; 
+	const uint8_t mask=0xFF;
 	DDRF  &= ~mask;
 	PORTF &= ~mask;
 	const uint8_t mask_PRADC =0x01; 
