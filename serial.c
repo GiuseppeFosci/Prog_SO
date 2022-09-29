@@ -7,8 +7,23 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-int main(){
-	int serial_port = open("/dev/ttyACM1", O_RDWR);
+#include <signal.h>
+#include <stdlib.h>
+
+static volatile sig_atomic_t keep_running = 1;
+
+static void sig_handler(int _)
+{
+    (void)_;
+    keep_running = 0;
+}
+
+
+//----------------------------------------------------
+int main(void){
+	signal(SIGINT, sig_handler);
+	
+	int serial_port = open("/dev/ttyACM0", O_RDWR);
 	struct termios tty;
 	if(tcgetattr(serial_port, &tty) != 0) {
 		printf("Error %i from tcgetattr: %s\n", errno, strerror(errno));
@@ -62,7 +77,7 @@ int main(){
 	}
 	unsigned char output[4];
 	int idx = 0;
-	while(msg[0]=='1'){
+	while(keep_running){
 		read(serial_port, &read_buf, sizeof(unsigned char));
 		output[idx]=*read_buf;
 		idx++;
@@ -73,6 +88,8 @@ int main(){
 			memset(&output, '\0', sizeof(output));
 		}	
 	}
+	msg[1] = '0';
+	write(serial_port, msg, sizeof(msg));
 	close(serial_port);
-	return 0;
+	return EXIT_SUCCESS;
 }
