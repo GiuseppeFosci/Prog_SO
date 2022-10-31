@@ -5,16 +5,23 @@
 #include <avr/interrupt.h>
 #include <stdint.h>
 #include <string.h>
+#include<stdlib.h>
+#include<stdio.h>
+//#include <linux/init.h>
+//#include <linux/module.h>
+//MODULO GESTIONE FILE OPERATIONS
+//#include <linux/fs.h>
+
+
 #define BAUD 9600
 #define MYUBRR (F_CPU/16/BAUD-1)
 #define MAX_BUF 256
 #define MAX_CHAR 5
 
-//char array[MAX_BUF][MAX_CHAR];
-//uint8_t idx=0;
-//uint8_t idx_read=0;
+void SetPrescaler(int c); //Prototipo funzione per prescaler
 uint8_t char_idx=0;
 char str[256];
+
 
 void UART_init(void){
 	UBRR0H = (uint8_t)(MYUBRR>>8);
@@ -26,34 +33,15 @@ void UART_init(void){
 //Michele
 ISR(USART0_RX_vect){
 	uint8_t c=UDR0;
-	if(c == 'y'){	//y to start the ADC
-			ADCSRA = 0x9F;
-			ADCSRA |= 0x40;
+
+	cli();
+	 SetPrescaler(c);
+	 sei();
+
 	}
-	if(c == 'n'){	//n to stop the ADC
-		UCSR0B &= ~(1 << UDRIE0);
-		ADCSRA = 0x00;
-		ADCSRA = 0x9F;
-	}
-}
+				
 ISR(USART0_UDRE_vect){
-	/*if(array[idx_read][char_idx]){
-		UDR0=array[idx_read][char_idx];
-		char_idx+=1;
-	} else {
-		idx_read+=1;
-		char_idx=0;
-		ADCSRA |= 0x40;
-	}
-	if(char_idx >= MAX_CHAR){
-		idx_read+=1;
-		if(idx_read >= MAX_BUF){
-			idx_read=0;
-			char_idx=0;
-		}
-		UCSR0B &= ~(1 << UDRIE0);
-		ADCSRA |= 0x40;
-	}*/
+	
 	if(str[char_idx]){
 		UDR0=str[char_idx];
 		char_idx+=1;
@@ -67,12 +55,8 @@ ISR(USART0_UDRE_vect){
 
 //Giuseppe and Michele
 ISR(ADC_vect){
-	/*sprintf(array[idx],"%d\n",(int)ADCH);
-	idx+=1;
-	if(idx >= MAX_BUF){
-		idx=0;
-	}
-	UCSR0B |= (1 << UDRIE0);*/
+
+	
 	sprintf(str,"%d\n",(int)ADCH);
 	UCSR0B |= (1 << UDRIE0);
 }
@@ -81,41 +65,80 @@ ISR(ADC_vect){
 int main(void){
 	//Giuseppe and Michele
 	cli();
+	
 	UART_init();
+	
 	const uint8_t mask=0xFF; 
 	DDRF  &= ~mask;
 	PORTF &= ~mask;
 	const uint8_t mask_PRADC =0x01; 
-	PRR0 &= ~mask_PRADC;
+	PRR0 &= ~mask_PRADC; //Disabilito power saving
+
+	
 	ADCSRB = 0x00;
-	ADMUX = 0x60;
+	ADMUX = 0x60; // 0110 0000 - Reference voltage & right aligned
+	
 	sei();
 	while(1){}
 	//Giuseppe and Michele
 }
+//Giuseppe
+void SetPrescaler(int c){
+		
+	switch (c)    //Imposto ADPS2 -ADPS1-ADPS0  
+	{   case 48:
+		
+		UCSR0B &= ~(1 << UDRIE0); 	
 
-/* If you want to put measurements into a file
- * write this on the terminal.
- * 
- * 1.Put the process of writing on file in background
- * cat /dev/ttyXXXX > text.txt &     
- * 
- * 
- * 2.Start writing on the file
- * echo "y">/dev/ttyXXXX
- * 
- * 
- * 3.Stop writing on the file 
- * echo "n">/dev/ttyXXXX
- * 
- * 
- * 4.To see what are the measurements on the terminal
- * cat /dev/ttyXXXX (only after 1. & 2.)
- * 
- * 5.Kill the process open once finished
- * kill -9 $$$$$$
- * (where $$$$$$ is the code of the process opened in 1.)
- * 
- * ATTENTION! Note that XXXX is your arduino device code on your PC
- * ATTENTION! Don't forget to stop writing
-*/
+		ADCSRA = 0x00;
+		ADCSRA = 0x9F;  
+		
+		break; 
+
+		case 49:  
+		//0-0-0 - Division Factor 2
+		
+		ADCSRA = 0x98;
+		ADCSRA |= 0x40; //Setto bit ADSC a 1 - Start conversion
+		break; 
+		case 50: 
+	        //0-0-1 - Division Factor 2
+		ADCSRA = 0x99;
+		ADCSRA |= 0x40;
+		break;
+		case 51: 
+		//0-1-0 -Division Factor 4
+		ADCSRA = 0x9A;
+		ADCSRA |= 0x40;
+		break;
+		case 52: 
+		//"0-1-1 -Division Factor 8
+		ADCSRA = 0x9B;
+		ADCSRA |= 0x40;
+		break;
+		case 53: 
+		//1-0-0 -Division Factor 16
+		ADCSRA = 0x9C;
+		ADCSRA |= 0x40;
+		break;
+		case 54: 
+		//1-0-1 -Division Factor 32
+		ADCSRA = 0x9D;
+		ADCSRA |= 0x40;
+		break;
+		case 55: 
+		//1-1-0 -Division Factor 64
+		ADCSRA = 0x9E;
+		ADCSRA |= 0x40;
+		break;
+		case 56: 
+		//1-1-1 -Division Factor 128
+		ADCSRA = 0x9F;
+		ADCSRA |= 0x40;
+		break;	
+		default: 
+		//Errore impostazione Prescaler;
+		break;
+	}	
+} //Giuseppe
+
