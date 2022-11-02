@@ -41,23 +41,14 @@ ISR(USART0_RX_vect){
 	}
 				
 ISR(USART0_UDRE_vect){
-	
-	if(str[char_idx]){
-		UDR0=str[char_idx];
-		char_idx+=1;
-	} else {
-		char_idx=0;
-		UCSR0B &= ~(1 << UDRIE0);
-		ADCSRA |= 0x40;
-	}
+	UDR0 = (unsigned int) ADCH;
+	UCSR0B &= ~(1 << UDRIE0);
+	ADCSRA |= 0x40;
 }
 //Michele
 
 //Giuseppe and Michele
 ISR(ADC_vect){
-
-	
-	sprintf(str,"%d\n",(int)ADCH);
 	UCSR0B |= (1 << UDRIE0);
 }
 //Giuseppe and Michele

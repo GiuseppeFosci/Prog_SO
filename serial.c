@@ -72,7 +72,7 @@ int main(void){
 	unsigned char carattere;
 	scanf("%c", &carattere);
 	unsigned char msg[] = {carattere, '\n'};
-	char read_buf[256];
+	unsigned char read_buf[256];
 	memset(&read_buf, '\0', sizeof(msg));
 	sleep(4);
 	printf("Numero inseirito: %c\n", carattere);
@@ -87,20 +87,12 @@ int main(void){
 		printf("Error reading: %s", strerror(errno));
 		return 1;
 	}
-	unsigned char output[4];
-	int idx = 0;
+	unsigned int output=0;
 	while(keep_running){
-		read(serial_port, &read_buf, sizeof(unsigned char));
-		output[idx]=*read_buf;
-		idx++;
-		if(*read_buf=='\n' || *read_buf=='\0'){
-			output[idx]='\0';
-			idx=0;
-			printf("Misurazione: %s", output);
-		
-			fprintf(fd, "%s", output); //Scrittura su file 
-			memset(&output, '\0', sizeof(output));
-		}	
+		read(serial_port, &output, sizeof(unsigned char));
+		printf("Misurazione: %u\n", output);
+		fprintf(fd, "%u\n", output); //Scrittura su file
+		output=0;
 	}
 	msg[1] = '0';
 	write(serial_port, msg, sizeof(msg));
